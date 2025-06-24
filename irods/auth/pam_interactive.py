@@ -236,32 +236,15 @@ class _pam_interactive_ClientAuthState(authentication_base):
         resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
         self.loggedIn = 1
         return resp
+
     def running(self, request):
-        server_req = request.copy()
-        self._patch_state(server_req)
-        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
-
-        resp = _auth_api_request(self.conn, server_req)
-
-        return resp
+        return self.next(request)
 
     def ready(self, request):
-        server_req = request.copy()
-        self._patch_state(server_req)
-        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
-
-        resp = _auth_api_request(self.conn, server_req)
-
-        return resp
+        return self.next(request)
 
     def response(self, request):
-        server_req = request.copy()
-        self._patch_state(server_req)
-        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
-
-        resp = _auth_api_request(self.conn, server_req)
-
-        return resp
+        return self.next(request)
 
     def error(self, request):
         print("Authentication error.")
