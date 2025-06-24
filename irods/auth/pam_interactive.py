@@ -9,8 +9,10 @@ from . import (
     STORE_PASSWORD_IN_MEMORY,
     CLIENT_GET_REQUEST_RESULT
 )
+from .native import _authenticate_native
 
 import getpass
+import sys
 
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
 AUTH_CLIENT_AUTH_RESPONSE = "pam_auth_response"
@@ -76,7 +78,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
         throw_if_request_message_is_missing_key(request, ["user_name", "zone_name"])
 
         server_req = request.copy()
-        server_req["next_operation"] = AUTH_AGENT_AUTH_RESPONSE
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
 
         resp = _auth_api_request(self.conn, server_req)
 
@@ -137,12 +139,41 @@ class _pam_interactive_ClientAuthState(authentication_base):
         req["resp"] = ""
         return True
 
+    def waiting(self, request):
+        server_req = request.copy()
+
+        if self._retrieve_entry(server_req):
+            self._patch_state(server_req)
+            server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
+            return _auth_api_request(self.conn, server_req)
+
+        prompt = server_req.get("msg", {}).get("prompt", "")
+        default_value = self._get_default_value(server_req)
+
+        display_prompt = f"{prompt} "
+        if default_value:
+            display_prompt = f"{prompt} [{default_value}] "
+
+        sys.stdout.write(display_prompt)
+        sys.stdout.flush()
+        user_input = sys.stdin.readline().strip()
+
+        if not user_input and default_value:
+            server_req["resp"] = default_value
+        else:
+            server_req["resp"] = user_input
+
+        self._patch_state(server_req)
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
+
+        return _auth_api_request(self.conn, server_req)
+
     def waiting_pw(self, request):
         server_req = request.copy()
 
         if self._retrieve_entry(server_req):
             self._patch_state(server_req)
-            server_req["next_operation"] = AUTH_AGENT_AUTH_RESPONSE
+            server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
             return _auth_api_request(self.conn, server_req)
 
         prompt = server_req.get("msg", {}).get("prompt", "Password: ")
@@ -160,7 +191,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
             server_req["resp"] = pw
 
         self._patch_state(server_req)
-        server_req["next_operation"] = AUTH_AGENT_AUTH_RESPONSE
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
 
         return _auth_api_request(self.conn, server_req)
 
@@ -195,4 +226,60 @@ class _pam_interactive_ClientAuthState(authentication_base):
         resp = request.copy()
         resp[__NEXT_OPERATION__] = PERFORM_NATIVE_AUTH
 
+        return resp
+
+    def native_auth(self, request):
+        resp = request.copy()
+
+        _authenticate_native(self.conn, request)
+
+        resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
+        self.loggedIn = 1
+        return resp
+    def running(self, request):
+        server_req = request.copy()
+        self._patch_state(server_req)
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
+
+        resp = _auth_api_request(self.conn, server_req)
+
+        return resp
+
+    def ready(self, request):
+        server_req = request.copy()
+        self._patch_state(server_req)
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
+
+        resp = _auth_api_request(self.conn, server_req)
+
+        return resp
+
+    def response(self, request):
+        server_req = request.copy()
+        self._patch_state(server_req)
+        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
+
+        resp = _auth_api_request(self.conn, server_req)
+
+        return resp
+
+    def error(self, request):
+        print("Authentication error.")
+        resp = request.copy()
+        resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
+        self.loggedIn = 0
+        return resp
+
+    def timeout(self, request):
+        print("Authentication timed out.")
+        resp = request.copy()
+        resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
+        self.loggedIn = 0
+        return resp
+
+    def not_authenticated(self, request):
+        print("Authentication failed.")
+        resp = request.copy()
+        resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
+        self.loggedIn = 0
         return resp
