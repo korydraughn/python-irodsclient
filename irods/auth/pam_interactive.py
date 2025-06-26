@@ -70,7 +70,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
         resp['zone_name'] = self.conn.account.proxy_zone
 
         if not resp.get(FORCE_PASSWORD_PROMPT, False):
-            if self.conn.account.password and self.conn.account.authentication_file_path:
+            if self.conn.account.password and self.conn.account._auth_file:
                 resp[__NEXT_OPERATION__] = PERFORM_NATIVE_AUTH
                 return resp
 
