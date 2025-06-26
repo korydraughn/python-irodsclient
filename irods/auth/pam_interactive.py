@@ -151,61 +151,43 @@ class _pam_interactive_ClientAuthState(authentication_base):
         req["resp"] = ""
         return True
 
-    def waiting(self, request):
-        server_req = request.copy()
-
+    def _get_input(self, server_req, is_password=False, prompt_label="Input: "):
         if self._retrieve_entry(server_req):
             self._patch_state(server_req)
             server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
             return _auth_api_request(self.conn, server_req)
 
-        prompt = server_req.get("msg", {}).get("prompt", "")
-        default_value = self._get_default_value(server_req)
-
-        display_prompt = f"{prompt} "
-        if default_value:
-            display_prompt = f"{prompt} [{default_value}] "
-
-        sys.stdout.write(display_prompt)
-        sys.stdout.flush()
-        user_input = sys.stdin.readline().strip()
-
-        if not user_input and default_value:
-            server_req["resp"] = default_value
-        else:
-            server_req["resp"] = user_input
-
-        self._patch_state(server_req)
-        server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
-
-        return _auth_api_request(self.conn, server_req)
-
-    def waiting_pw(self, request):
-        server_req = request.copy()
-
-        if self._retrieve_entry(server_req):
-            self._patch_state(server_req)
-            server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
-            return _auth_api_request(self.conn, server_req)
-
-        prompt = server_req.get("msg", {}).get("prompt", "Password: ")
+        prompt = server_req.get("msg", {}).get("prompt", prompt_label)
         default_value = self._get_default_value(server_req)
 
         display_prompt = prompt
         if default_value:
-            display_prompt = f"{prompt} [******] "
+            if is_password:
+                display_prompt += " [******] "
+            else:
+                display_prompt += f" [{default_value}] "
 
-        pw = getpass.getpass(display_prompt)
-
-        if not pw and default_value:
-            server_req["resp"] = default_value
+        if is_password:
+            user_input = getpass.getpass(display_prompt)
         else:
-            server_req["resp"] = pw
+            sys.stdout.write(display_prompt)
+            sys.stdout.flush()
+            user_input = sys.stdin.readline().strip()
+
+        server_req["resp"] = user_input or default_value
 
         self._patch_state(server_req)
         server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
 
         return _auth_api_request(self.conn, server_req)
+
+    def waiting(self, request):
+        server_req = request.copy()
+        return self._get_input(server_req, is_password=False)
+
+    def waiting_pw(self, request):
+        server_req = request.copy()
+        return self._get_input(server_req, is_password=True, prompt_label="Password: ")
 
     def next(self, request):
         prompt = request.get("msg", {}).get("prompt", "")
