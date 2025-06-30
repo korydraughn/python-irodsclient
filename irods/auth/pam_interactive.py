@@ -74,7 +74,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
         # If not forcing a prompt, check for existing credentials (.irodsA) to attempt native auth directly
         if not resp.get(FORCE_PASSWORD_PROMPT, False):
-            if self.conn.account.password and self.conn.account._auth_file:
+            if self.conn.account.password and self.conn.account.derived_auth_file:
                 resp[__NEXT_OPERATION__] = PERFORM_NATIVE_AUTH
                 return resp
 
