@@ -14,6 +14,7 @@ from .native import _authenticate_native
 import getpass
 import sys
 import ssl
+import logging
 
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
 AUTH_CLIENT_AUTH_RESPONSE = "pam_auth_response"
@@ -33,6 +34,8 @@ PERFORM_NATIVE_AUTH = "native_auth"
 AUTH_AGENT_AUTH_REQUEST = "auth_agent_auth_request"
 AUTH_AGENT_AUTH_RESPONSE = "auth_agent_auth_response"
 ENSURE_SSL_IS_ACTIVE = "ensure_ssl_is_active"
+
+_logger = logging.getLogger(__name__)
 
 def login(conn, **extra_opt):
     """The entry point for the pam_interactive authentication scheme."""
@@ -242,7 +245,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
     def next(self, request):
         prompt = request.get("msg", {}).get("prompt", "")
         if prompt:
-            print(prompt)
+            _logger.info("Server prompt: %s", prompt)
 
         server_req = request.copy()
         self._patch_state(server_req)
@@ -262,7 +265,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
         return self.next(request)
 
     def _auth_failure(self, request, message):
-        print(message)
+        _logger.error(message)
         resp = request.copy()
         resp[__NEXT_OPERATION__] = __FLOW_COMPLETE__
         self.loggedIn = 0
