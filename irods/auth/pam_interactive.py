@@ -199,13 +199,13 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
         return _auth_api_request(self.conn, server_req)
 
-    # Handles interactive input requests from the server
-    def waiting(self, request):  
+    def waiting(self, request):
+        """Handles interactive input requests from the server."""
         server_req = request.copy()
         return self._get_input(server_req, is_password=False)
 
-    # Handles the case where a password is specifically requested
     def waiting_pw(self, request):
+        """Handles the case where a password is specifically requested."""
         server_req = request.copy()
         return self._get_input(server_req, is_password=True, prompt_label="Password: ")
 
