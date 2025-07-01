@@ -16,6 +16,7 @@ import sys
 import ssl
 import logging
 
+# Constants defining the states and operations for the pam_interactive authentication flow
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
 AUTH_CLIENT_AUTH_RESPONSE = "pam_auth_response"
 PERFORM_RUNNING = "running"
