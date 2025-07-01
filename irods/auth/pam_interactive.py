@@ -137,7 +137,7 @@ class _pam_interactive_ClientAuthState(authentication_base):
             key = path[1:]
             operation = op.get("op")
 
-            value = op.get("value") if "value" in op else resp
+            value = op.get("value", resp)
 
             if operation == "add" or operation == "replace":
                 pstate[key] = value
