@@ -13,7 +13,6 @@ from .native import _authenticate_native
 
 import getpass
 import sys
-import ssl
 import logging
 
 # Constants defining the states and operations for the pam_interactive authentication flow
@@ -34,7 +33,6 @@ PERFORM_NATIVE_AUTH = "native_auth"
 
 AUTH_AGENT_AUTH_REQUEST = "auth_agent_auth_request"
 AUTH_AGENT_AUTH_RESPONSE = "auth_agent_auth_response"
-ENSURE_SSL_IS_ACTIVE = "ensure_ssl_is_active"
 
 _logger = logging.getLogger(__name__)
 
@@ -52,20 +50,10 @@ def login(conn, **extra_opt):
 class _pam_interactive_ClientAuthState(authentication_base):
     def __init__(self, conn, depot, *_, **_kw):
         super().__init__(conn, *_, **_kw)
-        self.check_ssl = True
         self.depot = depot
         self._list_for_request_result_return = None
 
     def auth_client_start(self, request):
-        ensure_ssl = request.pop(ENSURE_SSL_IS_ACTIVE, None)
-        if ensure_ssl is not None:
-            self.check_ssl = ensure_ssl
-
-        if self.check_ssl:
-            if not isinstance(self.conn.socket, ssl.SSLSocket):
-                msg = "pam_interactive auth scheme requires secure communications (TLS/SSL) with the server."
-                raise RuntimeError(msg)
-
         self._list_for_request_result_return = request.pop(CLIENT_GET_REQUEST_RESULT, None)
 
         resp = request.copy()
