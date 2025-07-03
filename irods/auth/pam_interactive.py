@@ -14,6 +14,8 @@ from .native import _authenticate_native
 import getpass
 import sys
 import logging
+import jsonpointer
+import jsonpatch
 
 # Constants defining the states and operations for the pam_interactive authentication flow
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
@@ -97,16 +99,12 @@ class _pam_interactive_ClientAuthState(authentication_base):
         """Looks for a default value in pstate based on a path from the server."""
 
         default_path = request.get("msg", {}).get("default_path", "")
-        default_value = ""
-
-        if default_path and default_path.startswith('/'):
-            key = default_path[1:]
-            pstate = request.get("pstate", {})
-
-            if key in pstate:
-                default_value = pstate[key]
-
-        return default_value
+        if default_path:
+            try:
+                return str(jsonpointer.resolve_pointer(request.get("pstate", {}), default_path))
+            except jsonpointer.JsonPointerException:
+                pass
+        return ""
 
     def _patch_state(self, req):
         """Applies server patch instructions to the client's pstate."""
@@ -115,26 +113,16 @@ class _pam_interactive_ClientAuthState(authentication_base):
         if not patch_ops:
             return
 
-        pstate = req.get("pstate", {})
         resp = req.get("resp", "")
 
+        # If the patch operation is an add or replace without a value, use the response value (following json patch RFC)
         for op in patch_ops:
-            path = op.get("path", "")
-            if not path.startswith('/'):
-                continue
+            if op.get("op") in ["add", "replace"] and "value" not in op: 
+                op["value"] = resp
 
-            key = path[1:]
-            operation = op.get("op")
-
-            value = op.get("value", resp)
-
-            if operation == "add" or operation == "replace":
-                pstate[key] = value
-            elif operation == "remove":
-                pstate.pop(key, None)
-
-        req["pstate"] = pstate
+        req["pstate"] = jsonpatch.apply_patch(req.get("pstate", {}), patch_ops)
         req["pdirty"] = True
+
         del req["msg"]["patch"]
 
     def _retrieve_entry(self, req):
@@ -143,15 +131,13 @@ class _pam_interactive_ClientAuthState(authentication_base):
         if "retrieve" not in req.get("msg", {}):
             return False
 
-        retr_path = req["msg"].get("retrieve", "")
-        if retr_path and retr_path.startswith('/'):
-            key = retr_path[1:]
-            pstate = req.get("pstate", {})
-            if key in pstate:
-                req["resp"] = pstate[key]
+        retr_path = req.get("msg", {}).get("retrieve", "")
+        if retr_path:
+            try:
+                req["resp"] = str(jsonpointer.resolve_pointer(req.get("pstate", {}), retr_path))
                 return True
-
-        # If no value found in pstate, set resp to empty string
+            except jsonpointer.JsonPointerException:
+                pass
         req["resp"] = ""
         return True
 
