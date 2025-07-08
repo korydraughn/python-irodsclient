@@ -12,10 +12,10 @@ from . import (
 from .native import _authenticate_native
 
 import getpass
-import sys
-import logging
-import jsonpointer
 import jsonpatch
+import jsonpointer
+import logging
+import sys
 
 # Constants defining the states and operations for the pam_interactive authentication flow
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
