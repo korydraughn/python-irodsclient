@@ -163,8 +163,8 @@ class _pam_interactive_ClientAuthState(authentication_base):
         if is_password:
             user_input = getpass.getpass(display_prompt)
         else:
-            sys.stdout.write(display_prompt)
-            sys.stdout.flush()
+            sys.stderr.write(display_prompt)
+            sys.stderr.flush()
             user_input = sys.stdin.readline().strip()
 
         server_req["resp"] = user_input or default_value
