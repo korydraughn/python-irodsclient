@@ -227,7 +227,9 @@ class _pam_interactive_ClientAuthState(authentication_base):
         self.loggedIn = 1
         return resp
 
-    # Pass through and failure states
+    # Pass-through states like next, running, ready, and response are used when the server
+    # performs internal updates without needing user input. The client applies state changes,
+    # optionally shows a prompt, and immediately sends the updated context back.
 
     def next(self, request):
         prompt = request.get("msg", {}).get("prompt", "")
@@ -250,6 +252,9 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
     def response(self, request):
         return self.next(request)
+
+    # Failure states like error, timeout, and not_authenticated occur when authentication fails.
+    # The client informs the user, marks login as unsuccessful, and ends the flow.
 
     def _auth_failure(self, request, message):
         _logger.error(message)
