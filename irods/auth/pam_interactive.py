@@ -146,6 +146,10 @@ class _pam_interactive_ClientAuthState(authentication_base):
                 return True
             except jsonpointer.JsonPointerException:
                 pass
+
+        # If no value found in pstate, set resp to empty string.
+        # The server will then decide the next step based on its configuration for the current prompt.
+        # It may terminate the flow if the input was required, fall back to a default value, or re-prompt the user.
         req["resp"] = ""
         return True
 
