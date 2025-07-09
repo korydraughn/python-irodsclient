@@ -17,7 +17,7 @@ import jsonpointer
 import logging
 import sys
 
-# Constants defining the states and operations for the pam_interactive authentication flow
+# Constants defining the states and operations for the pam_interactive authentication flow 
 AUTH_CLIENT_AUTH_REQUEST = "pam_auth_client_request"
 AUTH_CLIENT_AUTH_RESPONSE = "pam_auth_response"
 PERFORM_RUNNING = "running"
@@ -60,6 +60,12 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
         resp = request.copy()
 
+        # "pstate" stores persistent values across multiple authentication steps, allowing the server
+        # to recall previous inputs through JSON pointers. "pdirty" flags if pstate has changed and needs syncing.
+        # The server side implementation can be found here: https://github.com/irods/irods_auth_plugin_pam_interactive
+        # The plugin is built on the authentication framework described here:
+        # https://github.com/irods-contrib/irods_working_group_authentication/tree/e83e84df8ea4a732e5de894fb28aae281c3b3d29/development 
+
         resp["pstate"] = resp.get("pstate", {})
         resp["pdirty"] = resp.get("pdirty", False)
 
@@ -89,10 +95,12 @@ class _pam_interactive_ClientAuthState(authentication_base):
         throw_if_request_message_is_missing_key(request, ["user_name", "zone_name"])
 
         server_req = request.copy()
+        # The "next_operation" key here instructs the server which of its own operations to run
         server_req[__NEXT_OPERATION__] = AUTH_AGENT_AUTH_RESPONSE
 
         resp = _auth_api_request(self.conn, server_req)
 
+        # The server's response contains a "next_operation" key which dictates the client's next state.
         return resp
 
     def _get_default_value(self, request):
