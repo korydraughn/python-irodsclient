@@ -108,10 +108,8 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
         default_path = request.get("msg", {}).get("default_path", "")
         if default_path:
-            try:
-                return str(jsonpointer.resolve_pointer(request.get("pstate", {}), default_path))
-            except jsonpointer.JsonPointerException:
-                pass
+            jptr = jsonpointer.JsonPointer(default_path)
+            return str(jptr.get(request.get("pstate", {}), ""))
         return ""
 
     def _patch_state(self, req):
@@ -141,11 +139,9 @@ class _pam_interactive_ClientAuthState(authentication_base):
 
         retr_path = req.get("msg", {}).get("retrieve", "")
         if retr_path:
-            try:
-                req["resp"] = str(jsonpointer.resolve_pointer(req.get("pstate", {}), retr_path))
-                return True
-            except jsonpointer.JsonPointerException:
-                pass
+            jptr = jsonpointer.JsonPointer(retr_path)
+            req["resp"] = str(jptr.get(req.get("pstate", {}), ""))
+            return True
 
         # If no value found in pstate, set resp to empty string.
         # The server will then decide the next step based on its configuration for the current prompt.
