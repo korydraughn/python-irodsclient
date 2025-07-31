@@ -29,6 +29,8 @@ class PamInteractiveTest(unittest.TestCase):
     def tearDown(self):
         if self.sess:
             self.sess.cleanup()
+        if os.path.exists(self.auth_file_path):
+            os.remove(self.auth_file_path)
 
     def test_pam_interactive_login_basic(self):
         with patch("getpass.getpass", return_value=self.password):
