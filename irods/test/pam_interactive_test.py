@@ -121,7 +121,9 @@ class PamInteractiveTest(unittest.TestCase):
                 if expected_result:
                     self.assertEqual(request["resp"], expected_resp)
 
-    def test_get_input(self):
+    @patch('irods.auth.pam_interactive._auth_api_request', return_value={"result": "ok"})
+    @patch('sys.stderr.write')
+    def test_get_input(self, mock_stderr, mock_api_request):
         test_cases = [
             ("non_password_input", False, 'sys.stdin.readline', "rods\n", {"msg": {"prompt": "Prompt:"}}, "rods"),
             ("non_password_default", False, 'sys.stdin.readline', "\n", {"msg": {"prompt": "Prompt:", "default_path": "/password"}, "pstate": {"password": "rods"}}, "rods"),
@@ -130,8 +132,7 @@ class PamInteractiveTest(unittest.TestCase):
         ]
 
         for name, is_password, mock_target, user_input, request, expected_resp in test_cases:
-            with self.subTest(name=name), patch('irods.auth.pam_interactive._auth_api_request', return_value={"result": "ok"}), \
-            patch(mock_target, return_value=user_input), patch('sys.stderr.write'), patch.object(self.auth_client, '_patch_state') as mock_patch:
+            with self.subTest(name=name), patch(mock_target, return_value=user_input), patch.object(self.auth_client, '_patch_state') as mock_patch:
                 resp = self.auth_client._get_input(request, is_password=is_password)
                 self.assertEqual(request["resp"], expected_resp)
                 self.assertEqual(resp, {"result": "ok"})
