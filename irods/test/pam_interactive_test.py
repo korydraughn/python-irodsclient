@@ -37,9 +37,9 @@ class PamInteractiveTest(unittest.TestCase):
     def test_pam_interactive_login_basic(self):
         with patch("getpass.getpass", return_value=self.password):
             self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme="pam_interactive")
-            self.assertTrue(self.sess.server_version)
-            self.assertEqual(self.sess.username, self.user)
-            self.assertEqual(self.sess.zone, self.zone)
+            # Creating a session does not trigger auth, so the home collection is accessed to trigger and confirm auth succeeded
+            home = self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")
+            self.assertEqual(home.name, self.sess.username)
 
     def test_pam_interactive_auth_file_creation(self):
         with patch("getpass.getpass", return_value=self.password):
@@ -48,9 +48,8 @@ class PamInteractiveTest(unittest.TestCase):
 
         with patch("getpass.getpass", return_value=self.password) as mock_getpass:
             self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme= "pam_interactive")
-            self.assertTrue(self.sess.server_version)
-            self.assertEqual(self.sess.username, self.user)
-            self.assertEqual(self.sess.zone, self.zone)
+            home = self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")
+            self.assertEqual(home.name, self.sess.username)
             mock_getpass.assert_not_called()
 
     def test_forced_interactive_flow(self):
@@ -61,16 +60,15 @@ class PamInteractiveTest(unittest.TestCase):
         with patch("getpass.getpass", return_value=self.password) as mock_getpass:
             self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme="pam_interactive")
             self.sess.set_auth_option_for_scheme("pam_interactive", FORCE_PASSWORD_PROMPT, True)
-            self.assertTrue(self.sess.server_version)
-            self.assertEqual(self.sess.username, self.user)
-            self.assertEqual(self.sess.zone, self.zone)
+            home = self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")
+            self.assertEqual(home.name, self.sess.username)
             mock_getpass.assert_called_once()
 
     def test_failed_login_incorrect_password(self):
         with patch("getpass.getpass", return_value="wrong_password"):
             with self.assertRaises(ClientAuthError):
                 self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme="pam_interactive")
-                _ = self.sess.server_version # trigger auth flow
+                self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")  # trigger auth flow
 
         with patch("getpass.getpass", return_value="wrong_password"):
             with self.assertRaises(ClientAuthError):
