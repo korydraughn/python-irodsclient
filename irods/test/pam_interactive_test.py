@@ -1,4 +1,3 @@
-
 import unittest
 import os
 import json
@@ -17,6 +16,9 @@ from irods.auth.pam_interactive import __NEXT_OPERATION__, __FLOW_COMPLETE__
 class PamInteractiveTest(unittest.TestCase):
 
     def setUp(self):
+        # These tests assume the irods_environment.json file is set up correctly
+        # and that the iRODS user 'alice' exists in the 'tempZone' zone and has the password 'rods'.
+        # There should also be a linux user 'alice' with the same password.
         self.sess = None
         self.auth_client = _pam_interactive_ClientAuthState(None, None, scheme="pam_interactive")
         self.env_file_path = os.path.expanduser("~/.irods/irods_environment.json")
