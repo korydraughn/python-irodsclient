@@ -48,6 +48,7 @@ class PamInteractiveTest(unittest.TestCase):
 
         with patch("getpass.getpass", return_value=self.password) as mock_getpass:
             self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme= "pam_interactive")
+            # Creating a session does not trigger auth, so the home collection is accessed to trigger and confirm auth succeeded
             home = self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")
             self.assertEqual(home.name, self.sess.username)
             mock_getpass.assert_not_called()
@@ -60,6 +61,7 @@ class PamInteractiveTest(unittest.TestCase):
         with patch("getpass.getpass", return_value=self.password) as mock_getpass:
             self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme="pam_interactive")
             self.sess.set_auth_option_for_scheme("pam_interactive", FORCE_PASSWORD_PROMPT, True)
+            # Creating a session does not trigger auth, so the home collection is accessed to trigger and confirm auth succeeded
             home = self.sess.collections.get(f"/{self.sess.zone}/home/{self.sess.username}")
             self.assertEqual(home.name, self.sess.username)
             mock_getpass.assert_called_once()
