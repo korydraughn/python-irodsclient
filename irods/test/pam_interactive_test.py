@@ -7,12 +7,12 @@ from irods.auth import ClientAuthError, FORCE_PASSWORD_PROMPT
 from irods.auth.pam_interactive import (
     _pam_interactive_ClientAuthState,
     PERFORM_WAITING,
-    PERFORM_WAITING_PW,
     PERFORM_AUTHENTICATED,
+    PERFORM_NEXT,
 )
 from irods.test.helpers import make_session
 from irods.auth.pam_interactive import __NEXT_OPERATION__, __FLOW_COMPLETE__
-
+from irods.auth.pam_interactive import _auth_api_request
 class PamInteractiveTest(unittest.TestCase):
 
     def setUp(self):
@@ -158,6 +158,55 @@ class PamInteractiveTest(unittest.TestCase):
                     resp = state(request)
                     self.assertEqual(resp[__NEXT_OPERATION__], __FLOW_COMPLETE__)
                     self.assertEqual(self.auth_client.loggedIn, 0)
+
+    @patch("sys.stdin.readline", return_value="ABC123\n")
+    def test_pam_interactive_mfa_flow(self, mock_stdin):
+        state = {"stage": "before_mfa", "step": 0}
+
+        def mock_server(conn, req):
+            # Switch from the real server to the mock server when the password step is completed
+            if state["stage"] == "before_mfa":
+                resp = _auth_api_request(conn, req)
+                if req.get(__NEXT_OPERATION__) == PERFORM_NEXT: # Indicates the password step is complete
+                    state["stage"] = "mfa_mock"
+                return resp
+
+            # MFA simulation steps
+            if state["step"] == 0:
+                return {
+                    __NEXT_OPERATION__: PERFORM_WAITING,
+                    "pstate": {"Password: ": self.password, "verification_code": ""},
+                    "msg": {
+                        "prompt": "Verification Code: ",
+                        "default_path": "/verification_code",
+                        "patch": [{"op": "add", "path": "/verification_code"}],
+                    },
+                    "pdirty": True,
+                }
+            elif state["step"] == 1:
+                return {
+                    __NEXT_OPERATION__: PERFORM_NEXT,
+                    "pstate": {"Password: ": self.password, "verification_code": ""},
+                    "pdirty": True,
+                }
+            elif state["step"] == 2:
+                return {
+                    __NEXT_OPERATION__: PERFORM_AUTHENTICATED,
+                    "pstate": {"Password: ": self.password, "verification_code": "ABC123"},
+                    "pdirty": True,
+                    "request_result": "temp_token",
+                }
+
+            state["step"] += 1
+
+        with patch("irods.auth.pam_interactive._auth_api_request", side_effect=mock_server), \
+            patch("getpass.getpass", return_value=self.password), \
+            patch("irods.auth.pam_interactive._authenticate_native") as mock_native:
+
+            self.sess = make_session(test_server_version=False, env_file=self.env_file_path, authentication_scheme="pam_interactive")
+            self.sess.server_version  # Trigger auth flow
+
+        mock_native.assert_called_once()
 
 if __name__ == "__main__":
     unittest.main()
